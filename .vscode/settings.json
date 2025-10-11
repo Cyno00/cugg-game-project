@@ -66,5 +66,5 @@
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "cugg-game-project.sln"
+    "dotnet.defaultSolution": "CUGG-F25.sln"
 }
