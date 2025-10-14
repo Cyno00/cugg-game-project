@@ -27,6 +27,7 @@ public class ThirdPersonController : MonoBehaviour
 
     [Header("References")]
     public Transform cameraTransform;
+    public PlayerAttackCombo attackCombo;
 
     [Header("Input Actions")]
     public InputActionReference moveAction;    // Vector2 (WASD / LeftStick)
@@ -65,10 +66,17 @@ public class ThirdPersonController : MonoBehaviour
     {
         if (cameraTransform == null) return;
 
+        // Disable movement during attack combo
+        bool isAttacking = attackCombo != null && attackCombo.IsAttacking;
+
         // INPUT (new system)
         Vector2 move2D = moveAction != null ? moveAction.action.ReadValue<Vector2>() : Vector2.zero;
         bool jumpPressed = jumpAction != null && jumpAction.action.WasPressedThisFrame();
         bool sprintHeld = sprintAction != null && sprintAction.action.IsPressed();
+
+        // Block movement input when attacking
+        if (isAttacking)
+            move2D = Vector2.zero;
 
         move2D = Vector2.ClampMagnitude(move2D, 1f);
 
@@ -97,9 +105,9 @@ public class ThirdPersonController : MonoBehaviour
             if (velocity.y < 0f) velocity.y = -2f;
         }
 
-        // JUMP (with coyote time)
+        // JUMP (with coyote time) - disabled during attacks
         bool canCoyote = (Time.time - lastGroundedTime) <= coyoteTime;
-        if (jumpPressed && (grounded || canCoyote))
+        if (jumpPressed && (grounded || canCoyote) && !isAttacking)
             velocity.y = Mathf.Sqrt(2f * gravity * jumpHeight);
 
         // GRAVITY

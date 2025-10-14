@@ -7,7 +7,7 @@ using UnityEngine.InputSystem; // New Input System
 /// Always restores the EXACT editor baseline at Play start and
 /// gradually decays any deformations back to that baseline over time.
 ///
-/// Left drag  : Raise (hold Shift to Lower)
+/// Hold E     : Raise (hold Shift to Lower)
 /// Right drag : Smooth
 [ExecuteAlways]
 public class TerrainPainter_DecayToBaseline : MonoBehaviour
@@ -34,14 +34,12 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
     [Tooltip("If the found peak is very flat, fall back to cursor point unless the peak exceeds this min delta (in meters).")]
     [Min(0f)] public float peakMinDeltaMeters = 0.02f;
 
-
     [Header("Stationary Hold Growth")]
     [Tooltip("If the cursor is not moving, still repaint this many times per second at the hit point.")]
     [Range(1, 120)] public int stationaryPaintHz = 30;
 
     [Tooltip("World-space distance under which we consider the cursor 'stationary'.")]
     [Min(0f)] public float stationaryThresholdMeters = 0.02f;
-
 
     [Header("Input")]
     public bool enableLeftPaint = true;
@@ -82,7 +80,6 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
     private float stationaryAccum;          // accumulator for stationary repaint timing
     private Vector3 lastStationaryPoint;    // last point considered for stationary painting
 
-
     private class ActiveDecay
     {
         public RectInt rect;
@@ -120,14 +117,26 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
 
     private void Update()
     {
+        // >>> BLOCK EDIT-MODE PAINTING <<<
+        if (!Application.isPlaying)
+        {
+            // ensure any transient state is cleared while in edit mode
+            wasPaintingLastFrame = false;
+            lastWorldHit = null;
+            lastTerrain = null;
+            return;
+        }
+
         if (sceneCamera == null) return;
 
         var mouse = Mouse.current;
         var kb = Keyboard.current;
+
+        // We still need the mouse for cursor position/raycast, but painting is driven by keys now.
         if (mouse == null) return;
 
-        bool leftHeld = enableLeftPaint && mouse.leftButton.isPressed;
-        bool rightHeld = enableRightSmooth && mouse.rightButton.isPressed;
+        bool leftHeld = enableLeftPaint && kb != null && kb.eKey.isPressed;          // E = Raise/Lower
+        bool rightHeld = enableRightSmooth && mouse.rightButton.isPressed;              // RMB = Smooth (unchanged)
         bool paintingNow = leftHeld || rightHeld;
 
         // Stroke start
@@ -194,13 +203,12 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
                 }
                 // Reset stationary timer at new anchor
                 stationaryAccum = 0f;
-                Debug.Log("hold");
                 lastStationaryPoint = currentHit;
             }
             else
             {
                 // Stationary: repaint at a steady rate, but at the tip (local peak) instead of the cursor
-                stationaryAccum += Mathf.Max(0.0001f, Application.isPlaying ? Time.deltaTime : 1f / 60f);
+                stationaryAccum += Mathf.Max(0.0001f, Time.deltaTime);
                 float interval = 1f / Mathf.Max(1, stationaryPaintHz);
 
                 while (stationaryAccum >= interval)
@@ -235,7 +243,6 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
             stationaryAccum = 0f;
             lastStationaryPoint = currentHit;
         }
-
 
         if (any)
         {
@@ -290,7 +297,7 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
         bool shiftLower = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
         PaintMode mode = rightHeld ? PaintMode.Smooth : PaintMode.RaiseLower;
 
-        float dt = Mathf.Max(0.0001f, Application.isPlaying ? Time.deltaTime : 1f / 60f);
+        float dt = Mathf.Max(0.0001f, Time.deltaTime);
         float raiseDelta = raiseStrength * dt * (shiftLower ? -1f : 1f);
         float smoothAmt = Mathf.Clamp01(smoothStrength * dt);
 
@@ -616,6 +623,4 @@ public class TerrainPainter_DecayToBaseline : MonoBehaviour
         peakDeltaMeters = (bestH - centerHNorm) * sizeY;
         return true;
     }
-
-
 }

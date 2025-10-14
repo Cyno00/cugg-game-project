@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.InputSystem; // NEW INPUT SYSTEM
+using UnityEngine.InputSystem;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
@@ -86,7 +86,7 @@ public class ThirdPersonCamera : MonoBehaviour
         pitch -= look.y * mouseYSensitivity * Time.deltaTime;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
-        // Zoom input (scroll: positive/negative small values)
+        // Zoom input
         float zoomDelta = zoomAction != null ? zoomAction.action.ReadValue<float>() : 0f;
         desiredDistance = Mathf.Clamp(desiredDistance - zoomDelta, minDistance, maxDistance);
     }
