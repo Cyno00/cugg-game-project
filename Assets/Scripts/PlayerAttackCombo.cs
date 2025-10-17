@@ -52,6 +52,7 @@ public class PlayerAttackCombo : MonoBehaviour
     public Transform modelRoot;
     public bool rotateToTarget = true;
     public float rotateSpeed = 720f;
+    public ThirdPersonCamera cameraController;
 
     [Header("Input")]
     [Tooltip("Reference to your Gameplay Input Action Asset")]
@@ -62,10 +63,18 @@ public class PlayerAttackCombo : MonoBehaviour
     public string ultimateAnimationTrigger = "Ultimate";
     [Tooltip("Duration of the ultimate animation")]
     public float ultimateDuration = 2.0f;
+    [Tooltip("Cooldown time before ultimate can be used again (seconds)")]
+    public float ultimateCooldown = 10.0f;
     [Tooltip("Explosion particle effect prefab")]
     public GameObject explosionEffect;
     [Tooltip("Distance in front of player to spawn explosion")]
     public float explosionDistance = 5.0f;
+
+    [Header("Camera Shake")]
+    [Tooltip("Camera shake intensity")]
+    public float shakeIntensity = 0.5f;
+    [Tooltip("Camera shake duration")]
+    public float shakeDuration = 0.3f;
 
     [Header("Teleport")]
     [Tooltip("Extra gap to keep from touching colliders after the pull-to.")]
@@ -80,12 +89,18 @@ public class PlayerAttackCombo : MonoBehaviour
     // Public accessor for other systems to check attack state
     public bool IsAttacking => isAttacking;
     public bool IsUltimateAttacking => isUltimateAttacking;
+    public bool IsUltimateOnCooldown => Time.time < lastUltimateTime + ultimateCooldown;
+    public float UltimateCooldownRemaining => Mathf.Max(0f, (lastUltimateTime + ultimateCooldown) - Time.time);
     private bool isAttacking = false;
     private bool isUltimateAttacking = false;
+    private float lastUltimateTime = -999f; // Allow immediate use at start
 
     // hit-stop bookkeeping
     Coroutine _hitStopCo;
     float _hitStopUntil = 0f;
+
+    // camera shake bookkeeping
+    Coroutine _shakeCo;
 
     // per-step set so we don’t double-damage the same enemy in the same frame
     readonly HashSet<Transform> _hitThisStep = new HashSet<Transform>();
@@ -164,13 +179,14 @@ public class PlayerAttackCombo : MonoBehaviour
 
     private void TryStartUltimate()
     {
-        if (isAttacking || isUltimateAttacking)
+        if (isAttacking || isUltimateAttacking || IsUltimateOnCooldown)
             return;
 
         Transform target = FindNearestEnemy();
         if (target != null && rotateToTarget)
             FaceTargetImmediate(target.position);
 
+        lastUltimateTime = Time.time;
         StartCoroutine(DoUltimateRoutine());
     }
 
@@ -312,6 +328,46 @@ public class PlayerAttackCombo : MonoBehaviour
             // Fallback: destroy after 5 seconds if no particle system found
             Destroy(explosion, 5f);
         }
+    }
+
+    // Public function to trigger camera shake (call this during animation events)
+    public void TriggerCameraShake()
+    {
+        if (cameraController == null) return;
+        
+        if (_shakeCo != null)
+            StopCoroutine(_shakeCo);
+            
+        _shakeCo = StartCoroutine(ShakeCamera());
+    }
+
+    private IEnumerator ShakeCamera()
+    {
+        float elapsed = 0f;
+
+        while (elapsed < shakeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / shakeDuration;
+            
+            // Reduce intensity over time
+            float currentIntensity = shakeIntensity * (1f - progress);
+            
+            // Random shake offset
+            Vector3 randomOffset = new Vector3(
+                Random.Range(-1f, 1f) * currentIntensity,
+                Random.Range(-1f, 1f) * currentIntensity,
+                Random.Range(-1f, 1f) * currentIntensity * 0.5f // Less Z shake
+            );
+            
+            cameraController.SetShakeOffset(randomOffset);
+            
+            yield return null;
+        }
+
+        // Return camera to original position
+        cameraController.SetShakeOffset(Vector3.zero);
+        _shakeCo = null;
     }
 
     private Transform FindNearestEnemy()

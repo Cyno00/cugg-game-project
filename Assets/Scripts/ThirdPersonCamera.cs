@@ -38,6 +38,9 @@ public class ThirdPersonCamera : MonoBehaviour
     private float currentDistance;
     private Vector3 currentPivotPos;
 
+    // Camera shake
+    private Vector3 shakeOffset = Vector3.zero;
+
     private void Start()
     {
         if (target == null)
@@ -122,7 +125,7 @@ public class ThirdPersonCamera : MonoBehaviour
             }
         }
 
-        transform.position = desiredCamPos;
+        transform.position = desiredCamPos + shakeOffset;
     }
 
     private void OnToggleCursor(InputAction.CallbackContext ctx)
@@ -142,5 +145,11 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         xAngle = Mathf.Repeat(xAngle + 180f, 360f) - 180f;
         return xAngle;
+    }
+
+    // Public method to set camera shake offset
+    public void SetShakeOffset(Vector3 offset)
+    {
+        shakeOffset = offset;
     }
 }

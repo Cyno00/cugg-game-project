@@ -867,7 +867,7 @@ MonoBehaviour:
   enableLeftPaint: 1
   enableRightSmooth: 1
   playerTransform: {fileID: 2076744955}
-  minDistanceFromPlayer: 7
+  minDistanceFromPlayer: 4
   maxClickDistance: 150
   dragStep: 0.5
   useDelayedLOD: 1
@@ -2205,11 +2205,15 @@ MonoBehaviour:
   modelRoot: {fileID: 2076744955}
   rotateToTarget: 1
   rotateSpeed: 720
+  cameraController: {fileID: 119830385}
   inputActions: {fileID: -944628639613478452, guid: c7e5515fe49114bffb478be8a7cd0768, type: 3}
   ultimateAnimationTrigger: Ultimate
   ultimateDuration: 2
+  ultimateCooldown: 1
   explosionEffect: {fileID: 8512219979900639883, guid: 8f6a64168e9fa4d2fbc4908d7738e7c4, type: 3}
   explosionDistance: 9.31
+  shakeIntensity: 0.5
+  shakeDuration: 0.3
   standOffPadding: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
