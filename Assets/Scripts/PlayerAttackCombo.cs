@@ -57,18 +57,31 @@ public class PlayerAttackCombo : MonoBehaviour
     [Tooltip("Reference to your Gameplay Input Action Asset")]
     public InputActionAsset inputActions;
 
+    [Header("Ultimate Attack")]
+    [Tooltip("Ultimate animation trigger name")]
+    public string ultimateAnimationTrigger = "Ultimate";
+    [Tooltip("Duration of the ultimate animation")]
+    public float ultimateDuration = 2.0f;
+    [Tooltip("Explosion particle effect prefab")]
+    public GameObject explosionEffect;
+    [Tooltip("Distance in front of player to spawn explosion")]
+    public float explosionDistance = 5.0f;
+
     [Header("Teleport")]
     [Tooltip("Extra gap to keep from touching colliders after the pull-to.")]
     public float standOffPadding = 0.25f;
 
     private InputAction attackAction;
+    private InputAction ultimateAction;
 
     int comboIndex = 0;
     bool queuedNext = false;
 
     // Public accessor for other systems to check attack state
     public bool IsAttacking => isAttacking;
+    public bool IsUltimateAttacking => isUltimateAttacking;
     private bool isAttacking = false;
+    private bool isUltimateAttacking = false;
 
     // hit-stop bookkeeping
     Coroutine _hitStopCo;
@@ -81,7 +94,10 @@ public class PlayerAttackCombo : MonoBehaviour
     {
         var gameplayMap = inputActions.FindActionMap("Gameplay");
         if (gameplayMap != null)
+        {
             attackAction = gameplayMap.FindAction("Attack");
+            ultimateAction = gameplayMap.FindAction("Ultimate");
+        }
         else
             Debug.LogError("Gameplay action map not found in assigned InputActionAsset!");
     }
@@ -93,6 +109,11 @@ public class PlayerAttackCombo : MonoBehaviour
             attackAction.Enable();
             attackAction.performed += OnAttack;
         }
+        if (ultimateAction != null)
+        {
+            ultimateAction.Enable();
+            ultimateAction.performed += OnUltimate;
+        }
     }
 
     private void OnDisable()
@@ -102,6 +123,11 @@ public class PlayerAttackCombo : MonoBehaviour
             attackAction.performed -= OnAttack;
             attackAction.Disable();
         }
+        if (ultimateAction != null)
+        {
+            ultimateAction.performed -= OnUltimate;
+            ultimateAction.Disable();
+        }
     }
 
     private void OnAttack(InputAction.CallbackContext ctx)
@@ -109,9 +135,14 @@ public class PlayerAttackCombo : MonoBehaviour
         TryStartOrQueueAttack();
     }
 
+    private void OnUltimate(InputAction.CallbackContext ctx)
+    {
+        TryStartUltimate();
+    }
+
     private void TryStartOrQueueAttack()
     {
-        if (isAttacking)
+        if (isAttacking || isUltimateAttacking)
         {
             queuedNext = true;
             return;
@@ -129,6 +160,18 @@ public class PlayerAttackCombo : MonoBehaviour
         }
 
         StartCoroutine(DoComboRoutine(target));
+    }
+
+    private void TryStartUltimate()
+    {
+        if (isAttacking || isUltimateAttacking)
+            return;
+
+        Transform target = FindNearestEnemy();
+        if (target != null && rotateToTarget)
+            FaceTargetImmediate(target.position);
+
+        StartCoroutine(DoUltimateRoutine());
     }
 
     private IEnumerator DoComboRoutine(Transform initialTarget)
@@ -224,6 +267,51 @@ public class PlayerAttackCombo : MonoBehaviour
         isAttacking = false;
         queuedNext = false;
         comboIndex = 0;
+    }
+
+    private IEnumerator DoUltimateRoutine()
+    {
+        isUltimateAttacking = true;
+
+        // Trigger ultimate animation
+        if (animator && !string.IsNullOrEmpty(ultimateAnimationTrigger))
+            animator.SetTrigger(ultimateAnimationTrigger);
+
+        // Spawn explosion immediately in front of player
+        //TriggerExplosionInFront();
+
+        float elapsed = 0f;
+        while (elapsed < ultimateDuration)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        isUltimateAttacking = false;
+    }
+
+    public void TriggerExplosionInFront()
+    {
+        if (explosionEffect == null) return;
+
+        // Calculate position in front of player
+        Vector3 playerForward = (modelRoot ? modelRoot.forward : transform.forward);
+        Vector3 spawnPosition = transform.position + playerForward * explosionDistance;
+
+        GameObject explosion = Instantiate(explosionEffect, spawnPosition, Quaternion.identity);
+        
+        // Optional: Auto-destroy the explosion effect after some time
+        ParticleSystem particles = explosion.GetComponent<ParticleSystem>();
+        if (particles != null)
+        {
+            float destroyTime = particles.main.duration + particles.main.startLifetime.constantMax;
+            Destroy(explosion, destroyTime);
+        }
+        else
+        {
+            // Fallback: destroy after 5 seconds if no particle system found
+            Destroy(explosion, 5f);
+        }
     }
 
     private Transform FindNearestEnemy()
@@ -373,6 +461,12 @@ public class PlayerAttackCombo : MonoBehaviour
             center = transform.position + fwd * hitRange;
         }
         Gizmos.DrawWireSphere(center, hitRadius);
+
+        // visualize explosion spawn position in front of player
+        Gizmos.color = Color.red;
+        Vector3 explosionPos = transform.position + (modelRoot ? modelRoot.forward : transform.forward) * explosionDistance;
+        Gizmos.DrawWireSphere(explosionPos, 0.5f);
+        Gizmos.DrawLine(transform.position, explosionPos);
     }
 }
 
