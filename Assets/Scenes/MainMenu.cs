@@ -1,0 +1,14 @@
+using System.Security.Cryptography.X509Certificates;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class MainMenu : MonoBehaviour
+{
+    public void StartGame()
+    {
+        SceneManager.LoadSceneAsync(1);
+    }
+
+}
+
+    
